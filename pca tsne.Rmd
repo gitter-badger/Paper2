@@ -1,0 +1,144 @@
+---
+title: "Untitled"
+author: "Chase Clark"
+date: "January 7, 2018"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(FactoMineR)
+library(factoextra)
+library(rgl)
+
+proteinMatrix<-readRDS("data/ProteinMatrixWithDefaultIDBacSettings.rds")
+
+```
+
+
+
+PCA with scaling
+```{r}
+
+pcaResults<- PCA(proteinMatrix,graph=FALSE,scale.unit = T)
+# Get the first 5 dimensions
+fiveDimensions <- as.data.frame(pcaResults$ind$coord)
+sampleNames <- row.names(fiveDimensions)
+forPlotting <- as_tibble(cbind(fiveDimensions,sampleNames))
+
+ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
+    geom_text()+
+    xlab("Dimension 1")+
+    ylab("Dimension 2")+
+    ggtitle("Zoomable PCA of Protein MALDI Spectra")+
+    theme(plot.title=element_text(size=15),legend.position="none")
+
+
+
+```
+
+
+
+
+PCA without scaling
+
+
+```{r}
+pcaResults<- PCA(proteinMatrix,graph=FALSE,scale.unit = F)
+# Get the first 5 dimensions
+fiveDimensions <- as.data.frame(pcaResults$ind$coord)
+sampleNames <- row.names(fiveDimensions)
+forPlotting <- as_tibble(cbind(fiveDimensions,sampleNames))
+
+ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
+    geom_text()+
+    xlab("Dimension 1")+
+    ylab("Dimension 2")+
+    ggtitle("Zoomable PCA of Protein MALDI Spectra")+
+    theme(plot.title=element_text(size=15),legend.position="none")
+
+```
+
+
+
+
+PCA with scaling
+
+
+
+```{r}
+
+sampleNames <- row.names(proteinMatrix)
+
+zeroHandle <-sapply(as_tibble(proteinMatrix),function(x){
+          unlist(lapply(x,function(y){
+              if (y<0.1){     
+              
+              y<- .001   
+              } else{
+                  y
+              }
+          }
+          ))
+      }
+  )
+
+
+
+proteinMatrixTibble<-as_tibble(zeroHandle)
+
+proteinMatrixTibble <- proteinMatrixTibble %>% mutate_all(log10)
+
+pcaResults<- PCA(proteinMatrixTibble,graph=FALSE,scale.unit = F)
+# Get the first 5 dimensions
+fiveDimensions <- as.data.frame(pcaResults$ind$coord)
+
+forPlotting <- as_tibble(cbind(fiveDimensions,sampleNames))
+
+ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
+    geom_text()+
+    xlab("Dimension 1")+
+    ylab("Dimension 2")+
+    ggtitle("Zoomable PCA of Protein MALDI Spectra")+
+    theme(plot.title=element_text(size=15),legend.position="none")
+```
+
+
+```{r}
+
+e<-forPlotting
+options(rgl.useNULL=TRUE)
+    plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="")
+    text3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,text=sampleNames)
+    rglwidget()
+
+```
+
+
+
+
+```{r}
+library("Rtsne")
+d<-Rtsne(proteinMatrixTibble,dims=3)
+colnames(d$Y)<-c("Dim.1","Dim.2","Dim.3")
+e<-as.data.frame(d$Y)
+options(rgl.useNULL=TRUE)
+ #  plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="")
+    
+splt <- split(seq_along(sampleNames), ceiling(seq_along(sampleNames)/20))
+for(i in splt){
+
+text3d(x=e$Dim.1[i],y=e$Dim.2[i],z=e$Dim.3[i],text=sampleNames[i])
+  }
+    rglwidget()
+
+
+```
+
+
+
+while (!is.null(dev.list()))  dev.off()
+
+
+
+

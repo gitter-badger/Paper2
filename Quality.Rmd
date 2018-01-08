@@ -1,0 +1,229 @@
+---
+title: "Dendrogram and Dots: Figuring it Out"
+author: "Chase Clark"
+date: "January 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Load packages:
+```{r}
+library("tidyverse")
+library("dendextend")
+library("MALDIquant")
+
+```
+
+
+# Spectra Evaluation
+
+
+Get Protein spectra
+```{r}
+files<-list.files("Data/Peak_Lists",full.names = TRUE)
+
+
+proteinSpectraFiles<-files[grep("SummedProteinSpectra",files)]
+
+```
+
+
+load protein spectra
+```{r}
+proteinSpectra<-sapply(proteinSpectraFiles,readRDS)
+```
+
+
+check for low-intensity spectra
+```{r}
+
+
+maxIntensities<-sapply(proteinSpectra,function(x)max(intensity(x)))
+
+
+maxIntSorted<-sort(as.vector(maxIntensities))
+
+
+```
+
+
+
+```{r}
+a<-as_tibble(maxIntSorted)
+w<-as.vector(unlist(a))
+
+```
+
+ 
+ 
+Interquartile Range
+```{r}
+IQR(w)
+
+```
+
+Standard Deviation
+
+```{r}
+sd(w)
+mad(w)
+
+```
+
+
+boxplot
+
+```{r}
+boxplot(w)
+
+```
+
+
+plot ordered intensities
+
+```{r}
+plot(w)
+
+```
+
+
+
+
+
+
+order spectra by intensity, low to high
+
+
+```{r}
+
+orderedVector<-order(as.vector(maxIntensities))
+orderedSpectra<-proteinSpectra[orderedVector]
+
+
+```
+
+```{r}
+par(mfrow=c(4,4))
+sapply(orderedSpectra[1:16],plot)
+
+```
+
+
+
+
+
+
+Spectra aren't the best, but they are also not so bad.
+
+
+Let's move on to peaks/ low peak #
+
+
+
+```{r}
+remove(proteinSpectra)
+```
+
+
+
+# Peak Evaluation
+
+
+
+```{r}
+files<-list.files("Data/Peak_Lists",full.names = TRUE)
+
+
+proteinPeaksFiles<-files[grep("ProteinPeaks",files)]
+
+```
+
+
+load protein Peaks
+```{r}
+proteinPeaks<-sapply(proteinPeaksFiles,readRDS)
+```
+
+
+check for low-intensity Peaks
+```{r}
+
+
+maxIntensities<-sapply(unlist(proteinPeaks),function(x)sd(intensity(x)))
+
+
+maxIntSorted<-sort(as.vector(maxIntensities))
+
+
+```
+
+
+
+```{r}
+a<-as_tibble(maxIntSorted)
+w<-as.vector(unlist(a))
+
+```
+
+ 
+ 
+Interquartile Range
+```{r}
+IQR(w)
+
+```
+
+Standard Deviation
+
+```{r}
+sd(w)
+mad(w)
+
+```
+
+
+boxplot
+
+```{r}
+boxplot(w)
+
+```
+
+
+plot ordered intensities
+
+```{r}
+plot(w)
+
+```
+
+
+
+
+
+
+order Peaks by intensity, low to high
+
+
+```{r}
+
+orderedVector<-order(as.vector(maxIntensities))
+orderedPeaks<-unlist(proteinPeaks)[orderedVector]
+
+
+```
+
+```{r}
+par(mfrow=c(4,4))
+sapply(orderedPeaks[3000:3016],function(x)plot(x,xlim=c(2000,20000)))
+```
+
+
+
+
+
+
