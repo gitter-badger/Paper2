@@ -5,22 +5,27 @@ date: "January 7, 2018"
 output: html_document
 ---
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 library(tidyverse)
 library(FactoMineR)
 library(factoextra)
 library(rgl)
 library(plotly)
 library(Rtsne)
+library(dendextend)
+library(networkD3)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 proteinMatrix<-readRDS("data/ProteinMatrixWithDefaultIDBacSettings.rds")
 
 ```
 
 
-
 PCA with scaling, but no log normaliztion
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 pcaResults<- PCA(proteinMatrix,graph=FALSE,scale.unit = T)
 # Get the first 5 dimensions
@@ -28,13 +33,14 @@ fiveDimensions <- as.data.frame(pcaResults$ind$coord)
 sampleNames <- row.names(fiveDimensions)
 forPlotting <- as_tibble(cbind(fiveDimensions,sampleNames))
 
-ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
+p <- ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
     geom_text()+
     xlab("Dimension 1")+
     ylab("Dimension 2")+
-    ggtitle("Zoomable PCA of Protein MALDI Spectra")+
+    ggtitle(" PCA, Protein Data- Scaled, No log normalization")+
     theme(plot.title=element_text(size=15),legend.position="none")
 
+ggplotly(p)
 
 
 ```
@@ -46,19 +52,21 @@ PCA without scaling, no log normaliztion
 
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 pcaResults<- PCA(proteinMatrix,graph=FALSE,scale.unit = F)
 # Get the first 5 dimensions
 fiveDimensions <- as.data.frame(pcaResults$ind$coord)
 sampleNames <- row.names(fiveDimensions)
 forPlotting <- as_tibble(cbind(fiveDimensions,sampleNames))
 
-ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
+p <- ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
     geom_text()+
     xlab("Dimension 1")+
     ylab("Dimension 2")+
-    ggtitle("Zoomable PCA of Protein MALDI Spectra")+
+    ggtitle(" PCA, Protein Data- No Scaling, No log normalization")+
     theme(plot.title=element_text(size=15),legend.position="none")
+
+ggplotly(p)
 
 ```
 
@@ -69,7 +77,7 @@ PCA without scaling,  with log normaliztion
 
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 sampleNames <- row.names(proteinMatrix)
 
@@ -102,8 +110,10 @@ ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
     geom_text()+
     xlab("Dimension 1")+
     ylab("Dimension 2")+
-    ggtitle("Zoomable PCA of Protein MALDI Spectra")+
+    ggtitle(" PCA, Protein Data- No scaling, Log normalized")+
     theme(plot.title=element_text(size=15),legend.position="none")
+
+ggplotly(p)
 ```
 
 
@@ -111,7 +121,7 @@ ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
 PCA with scaling,  with log normaliztion
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 
 sampleNames <- row.names(proteinMatrix)
@@ -145,7 +155,7 @@ ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
     geom_text()+
     xlab("Dimension 1")+
     ylab("Dimension 2")+
-    ggtitle("PCA of Protein MALDI Spectra")+
+    ggtitle(" PCA, Protein Data- Scaled and log normalized")+
     theme(plot.title=element_text(size=15),legend.position="none")
 ```
 
@@ -171,7 +181,7 @@ ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
 
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 e<-forPlotting
 options(rgl.useNULL=TRUE)
@@ -184,7 +194,7 @@ options(rgl.useNULL=TRUE)
 
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 library("Rtsne")
 d<-Rtsne(proteinMatrixTibble,dims=3)
 colnames(d$Y)<-c("Dim.1","Dim.2","Dim.3")
@@ -212,7 +222,7 @@ while (!is.null(dev.list()))  dev.off()
 
 We need to find all the samples for which there is 16s-assigned taxonomic names:
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 spl<-strsplit(sampleNames,"-")
 lspl<-sapply(spl,length)
@@ -226,31 +236,29 @@ taxonomicNames
 
 Just return Genus
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 genera<-unlist(lapply(taxonomicNames,function(x)strsplit(x," ")[[1]][[1]]))
 genera
 ```
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 length(unique(genera))
 ```
 
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 tibs<-as_tibble(genera)
-top5<- tibs %>% count(value, sort = TRUE) %>% slice(1:5)
-
+top5<- tibs %>% group_by(value) %>% tally(sort=TRUE)
 # display table of genera sorted by prevalence
-tibs %>% count(value, sort = TRUE)
-
+ tibs %>% group_by(value) %>% tally(sort=TRUE)
 
 ```
 
 
 
 Now we need to make a column for colors
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 cols<-rep("Black",length(sampleNames))
 
@@ -267,7 +275,8 @@ text3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,text=sampleNames,color=cols)
 
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+colnames(e)<-c("aa","bb","cc")
 p<-ggplot(data=e)+
     geom_text(aes(x=aa,y=bb),label=sampleNames,color=cols)
 ggplotly(p)
@@ -288,7 +297,7 @@ ggplotly(p)
 
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 sampleNames <- row.names(proteinMatrix)
 
@@ -316,13 +325,84 @@ pcaResults<- PCA(proteinMatrixTibble,graph=FALSE,scale.unit = F)
 
 
 d<-Rtsne(proteinMatrixTibble,dims=3)
-colnames(d$Y)<-c("Dim.1","Dim.2","Dim.3")
+colnames(d$Y)<-c("Axis1","Axis2","Axis3")
 e<-as.data.frame(d$Y)
-options(rgl.useNULL=TRUE)
-   plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="")
 
-   
-   colnames(e)<-c("aa","bb","cc")
+ggplot(data=e)+
+    geom_point(aes(x=Axis1,y=Axis2),col=cols)+
+    theme_void()+
+  ggtitle("t-SNE Plot of Protein Data")
+
+
+
+
+```
+
+
+There are some weird taxonomic assignments in the t-SNE:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+tibe<-as_tibble(bind_cols(e,samples=sampleNames,color=cols))
+leftx  <- -40
+rightx <- -30
+boty   <- -10
+topy   <- 0
+
+
+zoomData <- tibe %>% filter(Axis1 > leftx) %>% filter(Axis1 < rightx) %>% filter(Axis2 > boty) %>% filter(Axis2 < topy)
+
+
+ggplot(data=zoomData)+
+    geom_label(aes(x=Axis1,y=Axis2,label=samples),col=zoomData$color)
+
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+leftx  <- -40
+rightx <- -30
+boty   <- -4.5
+topy   <- 0
+
+
+zoomData <- tibe %>% filter(Axis1 > leftx) %>% filter(Axis1 < rightx) %>% filter(Axis2 > boty) %>% filter(Axis2 < topy)
+
+ggplot(data=zoomData)+
+    geom_label(aes(x=Axis1,y=Axis2,label=samples),col=zoomData$color)
+
+
+
+```
+
+
+
+Let's look at the dendrogram results to see if this might be real and not just a t-SNE effect...
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+dend<-read_rds("Data/Distance-euclidean_Clustering-ward.D2_UsedPresenceAbsence_SNR-4_PercentPresence-60_LowCut-3000_HighCut-15000.rds")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+dendhc <- as_hclust_fixed(dend)
+
+dendroNetwork(dendhc,treeOrientation = "horizontal",zoom = TRUE,height=8000)
+
+
+
+
+```
+
+
+
+[](data/img/Shewanella-Microbacterium.png)
+
+
 
 
 r<-plot_ly(e, x = ~aa, y = ~bb, z = ~cc, type = 'scatter3d', mode = 'markers',text=sampleNames,color = cols)
@@ -330,27 +410,20 @@ chart_link = api_create(r, filename="basic3")
 chart_link
 
 
-
-
-
-```
-
-
-
-
 I created the color column as named colors (eg "Black","Blue"), but plotly needs these to be in HEX
 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 # cols is a vector of named colors
 # First we convert the named colors to rgb, and store the values in a list
-rgbVals<-lapply(cols,col2rgb)
+rgbVal<-lapply(cols,col2rgb)
 # Then convert the list to a data frame and flip it
-rgbVals<-t(as.data.frame(rgbVals,col.names = seq(1,length(rgbVals),by=1)))
+rgbVal<-as.data.frame(rgbVal,col.names = seq(1,length(rgbVal),by=1))
 # Then we convert the rgb values to HEX
 hexVal<-sapply(1:length(rgbVal[,1]),function(x){ rgb(rgbVal[x,"red"],rgbVal[x,"green"],rgbVal[x,"blue"],maxColorValue = 255) })
 ```
+
 
 
 
