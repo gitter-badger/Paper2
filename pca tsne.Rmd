@@ -10,6 +10,8 @@ library(tidyverse)
 library(FactoMineR)
 library(factoextra)
 library(rgl)
+library(plotly)
+library(Rtsne)
 
 proteinMatrix<-readRDS("data/ProteinMatrixWithDefaultIDBacSettings.rds")
 
@@ -17,7 +19,7 @@ proteinMatrix<-readRDS("data/ProteinMatrixWithDefaultIDBacSettings.rds")
 
 
 
-PCA with scaling
+PCA with scaling, but no log normaliztion
 ```{r}
 
 pcaResults<- PCA(proteinMatrix,graph=FALSE,scale.unit = T)
@@ -40,7 +42,8 @@ ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
 
 
 
-PCA without scaling
+PCA without scaling, no log normaliztion
+
 
 
 ```{r}
@@ -62,7 +65,7 @@ ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
 
 
 
-PCA with scaling
+PCA without scaling,  with log normaliztion
 
 
 
@@ -104,6 +107,70 @@ ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
 ```
 
 
+
+PCA with scaling,  with log normaliztion
+
+
+```{r}
+
+
+sampleNames <- row.names(proteinMatrix)
+
+zeroHandle <-sapply(as_tibble(proteinMatrix),function(x){
+          unlist(lapply(x,function(y){
+              if (y<0.1){     
+              
+              y<- .001   
+              } else{
+                  y
+              }
+          }
+          ))
+      }
+  )
+
+
+
+proteinMatrixTibble<-as_tibble(zeroHandle)
+
+proteinMatrixTibble <- proteinMatrixTibble %>% mutate_all(log10)
+
+pcaResults<- PCA(proteinMatrixTibble,graph=FALSE,scale.unit = T)
+# Get the first 5 dimensions
+fiveDimensions <- as.data.frame(pcaResults$ind$coord)
+
+forPlotting <- as_tibble(cbind(fiveDimensions,sampleNames))
+
+ggplot(forPlotting,aes(Dim.1,Dim.2,label=sampleNames))+
+    geom_text()+
+    xlab("Dimension 1")+
+    ylab("Dimension 2")+
+    ggtitle("PCA of Protein MALDI Spectra")+
+    theme(plot.title=element_text(size=15),legend.position="none")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```{r}
 
 e<-forPlotting
@@ -123,21 +190,168 @@ d<-Rtsne(proteinMatrixTibble,dims=3)
 colnames(d$Y)<-c("Dim.1","Dim.2","Dim.3")
 e<-as.data.frame(d$Y)
 options(rgl.useNULL=TRUE)
- #  plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="")
-    
+   plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="")
+        rglwidget()
+
 splt <- split(seq_along(sampleNames), ceiling(seq_along(sampleNames)/20))
 for(i in splt){
 
 text3d(x=e$Dim.1[i],y=e$Dim.2[i],z=e$Dim.3[i],text=sampleNames[i])
   }
     rglwidget()
-
+ 
 
 ```
 
 
 
 while (!is.null(dev.list()))  dev.off()
+
+
+
+
+We need to find all the samples for which there is 16s-assigned taxonomic names:
+
+```{r}
+
+spl<-strsplit(sampleNames,"-")
+lspl<-sapply(spl,length)
+# Find which have taxonomic names
+three<-which(lspl==3)
+taxonomicNames<-sapply(spl[three],function(x)x[[3]])
+taxonomicNames
+
+```
+
+
+Just return Genus
+
+```{r}
+genera<-unlist(lapply(taxonomicNames,function(x)strsplit(x," ")[[1]][[1]]))
+genera
+```
+
+```{r}
+length(unique(genera))
+```
+
+
+
+```{r}
+tibs<-as_tibble(genera)
+top5<- tibs %>% count(value, sort = TRUE) %>% slice(1:5)
+
+# display table of genera sorted by prevalence
+tibs %>% count(value, sort = TRUE)
+
+
+```
+
+
+
+Now we need to make a column for colors
+```{r}
+
+cols<-rep("Black",length(sampleNames))
+
+
+cols[grep(top5$value[[1]],sampleNames)]<-"red"
+cols[grep(top5$value[[2]],sampleNames)]<-"green"
+cols[grep(top5$value[[3]],sampleNames)]<-"blue"
+cols[grep(top5$value[[4]],sampleNames)]<-"orange"
+cols[grep(top5$value[[5]],sampleNames)]<-"purple"
+text3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,text=sampleNames,color=cols)
+
+
+```
+
+
+
+```{r}
+p<-ggplot(data=e)+
+    geom_text(aes(x=aa,y=bb),label=sampleNames,color=cols)
+ggplotly(p)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+sampleNames <- row.names(proteinMatrix)
+
+zeroHandle <-sapply(as_tibble(proteinMatrix),function(x){
+          unlist(lapply(x,function(y){
+              if (y<0.1){     
+              
+              y<- .001   
+              } else{
+                  y
+              }
+          }
+          ))
+      }
+  )
+
+
+
+proteinMatrixTibble<-as_tibble(zeroHandle)
+
+proteinMatrixTibble <- proteinMatrixTibble %>% mutate_all(log10)
+
+pcaResults<- PCA(proteinMatrixTibble,graph=FALSE,scale.unit = F)
+
+
+
+d<-Rtsne(proteinMatrixTibble,dims=3)
+colnames(d$Y)<-c("Dim.1","Dim.2","Dim.3")
+e<-as.data.frame(d$Y)
+options(rgl.useNULL=TRUE)
+   plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="")
+
+   
+   colnames(e)<-c("aa","bb","cc")
+
+
+r<-plot_ly(e, x = ~aa, y = ~bb, z = ~cc, type = 'scatter3d', mode = 'markers',text=sampleNames,color = cols)
+chart_link = api_create(r, filename="basic3")
+chart_link
+
+
+
+
+
+```
+
+
+
+
+I created the color column as named colors (eg "Black","Blue"), but plotly needs these to be in HEX
+
+
+```{r}
+
+# cols is a vector of named colors
+# First we convert the named colors to rgb, and store the values in a list
+rgbVals<-lapply(cols,col2rgb)
+# Then convert the list to a data frame and flip it
+rgbVals<-t(as.data.frame(rgbVals,col.names = seq(1,length(rgbVals),by=1)))
+# Then we convert the rgb values to HEX
+hexVal<-sapply(1:length(rgbVal[,1]),function(x){ rgb(rgbVal[x,"red"],rgbVal[x,"green"],rgbVal[x,"blue"],maxColorValue = 255) })
+```
+
 
 
 
