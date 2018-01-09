@@ -331,6 +331,69 @@ text3d(x=e$Dim.1[i],y=e$Dim.2[i],z=e$Dim.3[i],text=sampleNames[i],col=cols2[i])
 
 
 
+
+```{r}
+
+
+set.seed(42)
+d<-Rtsne(zeroHandle,dims=3,perplexity=30,max_iter=1000)
+colnames(d$Y)<-c("Dim.1","Dim.2","Dim.3")
+e<-as.data.frame(d$Y)
+options(rgl.useNULL=TRUE)
+   plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="",col=cols2,size=5)
+        rglwidget()
+
+splt <- split(seq_along(sampleNames), ceiling(seq_along(sampleNames)/20))
+for(i in splt){
+
+text3d(x=e$Dim.1[i],y=e$Dim.2[i],z=e$Dim.3[i],text=sampleNames[i],col=cols2[i])
+  }
+    rglwidget()
+ 
+```
+
+
+
+```{r,fig.width=6}
+
+
+set.seed(42)
+d<-Rtsne(zeroHandle,dims=3,perplexity=50,max_iter=1000)
+colnames(d$Y)<-c("Dim.1","Dim.2","Dim.3")
+e<-as.data.frame(d$Y)
+options(rgl.useNULL=TRUE)
+   plot3d(x=e$Dim.1,y=e$Dim.2,z=e$Dim.3,xlab="", ylab="", zlab="",col=cols2,size=10)
+        rglwidget()
+
+splt <- split(seq_along(sampleNames), ceiling(seq_along(sampleNames)/20))
+for(i in splt){
+
+text3d(x=e$Dim.1[i],y=e$Dim.2[i],z=e$Dim.3[i],text=sampleNames[i],col=cols2[i])
+  }
+    rglwidget()
+ 
+```
+
+From the above plot:
+
+Get 16s for 
+117H-85 Group
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 while (!is.null(dev.list()))  dev.off()
 
 
@@ -543,4 +606,14 @@ chart_link
 
 
 
+
+
+
+```{r}
+a<-hclust(dist(pcaResults$ind$coord,method="euclidean"),method="ward.D2")
+
+labels(a)<-sampleNames[as.numeric(labels(a))]
+dendroNetwork(a,treeOrientation = "horizontal",zoom = TRUE,height=8000)
+
+```
 

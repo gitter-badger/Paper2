@@ -1,0 +1,130 @@
+---
+title: "New dist"
+author: "Chase Clark"
+date: "January 9, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+
+
+```{r}
+# mqPeaks<-readRDS("C:/Users/CMC/Desktop/Example/Peak_Lists/31-2_ProteinPeaks.rds")
+
+a<-list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T)[1:5]
+
+mqPeaks<-list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T,ignore.case = T)[grep("proteinpeaks", list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T),ignore.case = T)[1:5]]
+
+mqPeaks <- sapply(mqPeaks,readRDS)
+
+
+```
+
+
+
+```{r}
+
+max(intensity(mqPeaks[[1]]))
+max(intensity(mqPeaks[[2]]))
+
+
+# which(intensity(mqPeaks[[1]]) == max(intensity(mqPeaks[[1]])))
+```
+
+
+
+To get mass diff: mass x 10e-6 x ppm
+
+
+
+```{r}
+#requires mass() from MALDIquant, but can be easily adapted.... input is just a vector of masses and a ppm value
+
+ppmAcrossVector<-function(massVector,ppm){mass(massVector) * .0000001 * ppm}
+
+```
+
+
+
+This returns "matched" which is a list with as many elements as there are peaksin "spectra1"
+Each element (representing a peak from spectra1) contains indices of masses from "spectra2" 
+that are within the ppm range.
+
+```{r}
+ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
+spectra1  <- mass(mqPeaks[[1]])
+spectra2  <- mass(mqPeaks[[2]])
+
+matched   <- lapply(seq_along(spectra1),function(x){
+                    which(b <= spectra1[x]+ppmVector[x] & spectra2 >= spectra1[x]-ppmVector[x])
+                    }
+              )
+
+
+```
+
+
+
+Now we count the matches of spectra2 to spectra1
+```{r}
+
+countMatches <- sum(sapply(matched,function(x) !!length(x)))
+
+```
+
+That's good to save for later... but... length(unlist(matched)) is more transparent/easy to understand
+
+
+
+
+
+```{r}
+ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
+spectra1  <- mass(mqPeaks[[1]])
+spectra2  <- mass(mqPeaks[[2]])
+
+
+
+matched   <- lapply(seq_along(spectra1),function(x){
+                    which(b <= spectra1[x]+ppmVector[x] & spectra2 >= spectra1[x]-ppmVector[x])
+                    }
+              )
+
+countMatches <- sum(sapply(matched,function(x) !!length(x)))
+
+# unlist() because spectra groups stored as list of list
+peakLists <- lapply(unlist(mqPeaks),mass)
+
+
+
+   
+# Let's explain this ->  peakLists[pairs[1]][[1]][x]
+# "peakLists" is a list of mass vectors, each sample is an element in the list
+# "pairs" has two values (comes from "pairwiseCombinations" which is a list of every combination of samples) 
+# so... "peakLists[pairs[1]][[1]][x]"... means return a certain peak vector and we'll iterate over the values in the first peak list.
+   
+  peakMatching<-function(pairs) {lapply(seq_along(peakLists[pairs[1]][[1]]),function(x){
+                    which(peakLists[pairs[2]][[1]] <= peakLists[pairs[1]][[1]][x]+ppmVector[x] & peakLists[pairs[2]][[1]] >= peakLists[pairs[1]][[1]][x]-ppmVector[x])
+  }
+              )}
+
+  
+    
+  
+  
+  
+  pairwiseCombinations<-as.data.frame(combn(seq_along(peakLists), 2))
+
+  
+  matchedSamples <- lapply(pairwiseCombinations,peakMatching)
+  
+
+```
+
