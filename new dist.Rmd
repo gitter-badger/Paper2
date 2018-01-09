@@ -86,18 +86,6 @@ That's good to save for later... but... length(unlist(matched)) is more transpar
 
 
 ```{r}
-ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
-spectra1  <- mass(mqPeaks[[1]])
-spectra2  <- mass(mqPeaks[[2]])
-
-
-
-matched   <- lapply(seq_along(spectra1),function(x){
-                    which(b <= spectra1[x]+ppmVector[x] & spectra2 >= spectra1[x]-ppmVector[x])
-                    }
-              )
-
-countMatches <- sum(sapply(matched,function(x) !!length(x)))
 
 # unlist() because spectra groups stored as list of list
 peakLists <- lapply(unlist(mqPeaks),mass)
@@ -110,7 +98,15 @@ peakLists <- lapply(unlist(mqPeaks),mass)
 # "pairs" has two values (comes from "pairwiseCombinations" which is a list of every combination of samples) 
 # so... "peakLists[pairs[1]][[1]][x]"... means return a certain peak vector and we'll iterate over the values in the first peak list.
    
+ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
+
+
+
+
+
   peakMatching<-function(pairs) {lapply(seq_along(peakLists[pairs[1]][[1]]),function(x){
+    ppmVector <- ppmAcrossVector(peakLists[pairs[1]][[1]],10)
+
                     which(peakLists[pairs[2]][[1]] <= peakLists[pairs[1]][[1]][x]+ppmVector[x] & peakLists[pairs[2]][[1]] >= peakLists[pairs[1]][[1]][x]-ppmVector[x])
   }
               )}
@@ -123,8 +119,18 @@ peakLists <- lapply(unlist(mqPeaks),mass)
   pairwiseCombinations<-as.data.frame(combn(seq_along(peakLists), 2))
 
   
+  
+  # Run peakMatching pairwise
   matchedSamples <- lapply(pairwiseCombinations,peakMatching)
   
+
+```
+
+
+```{r}
+
+
+lecou<-sapply(matchedSamples,function(x) length(unlist(x)))
 
 ```
 
