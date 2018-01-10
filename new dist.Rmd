@@ -16,66 +16,27 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r}
+library("MALDIquant")
 # mqPeaks<-readRDS("C:/Users/CMC/Desktop/Example/Peak_Lists/31-2_ProteinPeaks.rds")
 
-a<-list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T)[1:5]
 
-mqPeaks<-list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T,ignore.case = T)[grep("proteinpeaks", list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T),ignore.case = T)[1:5]]
+
+mqPeaks<-list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T,ignore.case = T)[grep("proteinpeaks", list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T),ignore.case = T)]
 
 mqPeaks <- sapply(mqPeaks,readRDS)
 
+# input is just a vector of masses and a ppm value
+ppmAcrossVector<-function(massVector,ppm){massVector * .0000001 * ppm}
 
 ```
 
-
-
-```{r}
-
-max(intensity(mqPeaks[[1]]))
-max(intensity(mqPeaks[[2]]))
-
-
-# which(intensity(mqPeaks[[1]]) == max(intensity(mqPeaks[[1]])))
-```
-
-
-
-To get mass diff: mass x 10e-6 x ppm
-
-
-
-```{r}
-#requires mass() from MALDIquant, but can be easily adapted.... input is just a vector of masses and a ppm value
-
-ppmAcrossVector<-function(massVector,ppm){mass(massVector) * .0000001 * ppm}
-
-```
-
-
-
-This returns "matched" which is a list with as many elements as there are peaksin "spectra1"
-Each element (representing a peak from spectra1) contains indices of masses from "spectra2" 
-that are within the ppm range.
-
-```{r}
-ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
-spectra1  <- mass(mqPeaks[[1]])
-spectra2  <- mass(mqPeaks[[2]])
-
-matched   <- lapply(seq_along(spectra1),function(x){
-                    which(b <= spectra1[x]+ppmVector[x] & spectra2 >= spectra1[x]-ppmVector[x])
-                    }
-              )
-
-
-```
 
 
 
 Now we count the matches of spectra2 to spectra1
 ```{r}
 
-countMatches <- sum(sapply(matched,function(x) !!length(x)))
+#countMatches <- sum(sapply(matched,function(x) !!length(x)))
 
 ```
 
@@ -87,6 +48,8 @@ That's good to save for later... but... length(unlist(matched)) is more transpar
 
 ```{r}
 
+poop <- unlist(mqPeaks)
+names(poop) <- as.vector(sapply(poop,function(x)metaData(x)$Strain))
 # unlist() because spectra groups stored as list of list
 peakLists <- lapply(unlist(mqPeaks),mass)
 
@@ -98,8 +61,9 @@ peakLists <- lapply(unlist(mqPeaks),mass)
 # "pairs" has two values (comes from "pairwiseCombinations" which is a list of every combination of samples) 
 # so... "peakLists[pairs[1]][[1]][x]"... means return a certain peak vector and we'll iterate over the values in the first peak list.
    
-ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
+#ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
 
+    ppmVector <- ppmAcrossVector(peakLists[[1]],10)
 
 
 
@@ -127,10 +91,69 @@ ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
 ```
 
 
+count matches
 ```{r}
 
 
-lecou<-sapply(matchedSamples,function(x) length(unlist(x)))
+lecou<-as.vector(unlist(lapply(matchedSamples,function(x) length(unlist(x)))))
+
 
 ```
 
+
+Fix names
+```{r}
+sampleNames <- as.vector(unlist(lapply(unlist(mqPeaks),function(x)metaData(x)$Strain)))
+
+orderOfNamesIndices<-as.data.frame(t(pairwiseCombinations))
+
+
+
+a<-factor(orderOfNamesIndices[,1])
+b<-lapply(levels(a),function(x)which(a == x))
+
+
+
+c<-factor(orderOfNamesIndices[,2])
+d<-lapply(levels(c),function(x)which(c == x))
+
+```
+
+
+Create a lower-left "distance matrix" triangle. YES!!!
+```{r}
+
+factorized<-factor(orderOfNamesIndices[,1])
+# list of indices of samples
+groupedBySample<-lapply(levels(a),function(x)which(a == x))
+
+
+re<-sapply(as.numeric(levels(factorized)),function(x) c(rep(NA,times=x),lecou[groupedBySample[[x]]]))
+
+
+
+```
+
+
+
+
+```{r}
+library(dplyr)
+as_tibble(re)
+```
+
+
+
+
+
+
+
+
+
+Basically we made a one-traingle dist matrix:
+ eg 312 spectra:
+                 ((312*312)-312)/2
+ 
+ 
+ 
+ 
