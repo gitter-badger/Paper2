@@ -10,7 +10,154 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
+From BioCor:
+```{r}
+# combinadic ####
+#' i-th combination of n elements taken from r
+#'
+#' Function similar to combn but for larger vectors. To avoid allocating a big
+#' vector with all the combinations each one can be computed with this
+#' function.
+#' @param n Elements to extract the combination from
+#' @param r Number of elements per combination
+#' @param i ith combination
+#' @return The combination ith of the elements
+#' @rdname combinadic
+#' @seealso \code{\link{combn}}
+#' @export
+#' @examples
+#' #Output of all combinations
+#' combn(LETTERS[1:5], 2)
+#' # Otuput of the second combination
+#' combinadic(LETTERS[1:5], 2, 2)
+#' @author Joshua Ulrich
+#' @references
+#' \href{http://stackoverflow.com/a/4494469/2886003}{StackOverflow answer
+#' 4494469/2886003}
+combinadic <- function(n, r, i) {
 
+    # http://msdn.microsoft.com/en-us/library/aa289166(VS.71).aspx
+    # http://en.wikipedia.org/wiki/Combinadic
+    n0 <- length(n)
+    if (i < 1L | i > choose(n0, r)) {
+        stop("'i' must be 0 < i <= n0!/(n0-r)!")
+    }
+    largestV <- function(n, r, i) {
+        v <- n # Adjusted for one-based indexing
+        while (choose(v,r) >= i) { # Adjusted for one-based indexing
+            v <- v - 1L
+        }
+        return(v)
+    }
+
+    res <- rep(NA,r)
+    for (j in 1L:r) {
+        res[j] <- largestV(n0, r, i)
+        i <- i - choose(res[j], r)
+        n0 <- res[j]
+        r <- r - 1L
+    }
+    res <- res + 1L
+    res <- n[res]
+    return(res)
+}
+
+# seq2mat ####
+#' Transforms a vector to a symmetric matrix
+#'
+#' Fils a matrix of \code{ncol = length(x)} and \code{nrow = length(x)} with
+#' the values in \code{dat} and setting the diagonal to 1.
+#'
+#' \code{dat} should be at least \code{choose(length(x), 2)} of length. It
+#' assumes that the data provided comes from using the row and column id to
+#' obtain it.
+#' @param x names of columns and rows, used to define the size of the matrix
+#' @param dat Data to fill with the matrix with except the diagonal.
+#' @return A square matrix with the diagonal set to 1 and \code{dat} on the
+#' upper and lower triangle with the columns ids and row ids from x.
+#' @examples
+#' seq2mat(LETTERS[1:5], 1:10)
+#' seq2mat(LETTERS[1:5], seq(from = 0.1, to = 1, by = 0.1))
+#' @export
+#' @seealso \code{\link{upper.tri}} and \code{\link{lower.tri}}
+#' @author Lluís Revilla
+seq2mat <- function(x, dat) {
+    if (length(dat) != choose(length(x), 2L)) {
+        stop("Data is not enough big to populate the matrix")
+    }
+    out <- matrix(ncol = length(x), nrow = length(x))
+    out[upper.tri(out)] <- unlist(dat)
+    out[lower.tri(out)] <- t(out)[lower.tri(t(out))]
+    diag(out) <- 1L
+    rownames(out) <- colnames(out) <- x
+    return(out)
+}
+
+# duplicateIndices ####
+#' Finds the indices of the duplicated events of a vector
+#'
+#' Finds the indices of duplicated elements in the vector given.
+#'
+#' For each duplication it can return a list or if all the duplication events
+#' are of the same length it returns a matrix, where each column is duplicated.
+#' @param vec Vector of identifiers presumably duplicated
+#' @return The format is determined by the simplify2array
+#' @export
+#' @author Lluís Revilla
+#' @seealso \code{\link{removeDup}}
+#' @examples
+#' duplicateIndices(c("52", "52", "53", "55")) # One repeated element
+#' duplicateIndices(c("52", "52", "53", "55", "55")) # Repeated elements
+#' duplicateIndices(c("52", "55", "53", "55", "52")) # Mixed repeated elements
+duplicateIndices <- function(vec) {
+    if (!is.character(vec)) {
+        stop("Expected a list of characters to find duplicates on it")
+    }
+    sapply(unique(vec[duplicated(vec)]), function(x){
+        b <- 1:length(vec)
+        b[vec == x]}, simplify = FALSE)
+}
+
+# removeDup ####
+#' Remove duplicated rows and columns
+#'
+#' Given the indices of the duplicated entries remove the columns and rows
+#' until just one is left, it keeps the duplicated with the highest absolute
+#' mean value.
+#'
+#' @param cor_mat List of matrices
+#' @param dupli List of indicies with duplicated entries
+#' @return A matrix with only one of the columns and rows duplicated
+#' @export
+#' @author Lluís Revilla
+#' @seealso \code{\link{duplicateIndices}} to obtain the list of indicies with
+#' duplicated entries.
+#' @examples
+#' a <- seq2mat(c("52", "52", "53", "55"), runif(choose(4, 2)))
+#' b <- seq2mat(c("52", "52", "53", "55"), runif(choose(4, 2)))
+#' mat <- list("kegg" = a, "react" = b)
+#' mat
+#' dupli <- duplicateIndices(rownames(a))
+#' remat <- removeDup(mat, dupli)
+#' remat
+removeDup <- function(cor_mat, dupli) {
+    if (!all(sapply(cor_mat, isSymmetric))) {
+        stop("All the matrices of mat should be symmetric and with the same ",
+             "column names and rownames")
+    }
+    cor_mat <- Map(function(mat, x = dupli) {
+        rem.colum <- sapply(x, function(y, m) {
+            mean.column <- apply(m[, y], 2L, mean, na.rm = TRUE)
+            i <- which.max(abs(mean.column))
+            # Select those who don't bring more information
+            rem.colum <- setdiff(y, y[i])
+        }, m = mat)
+
+        mat[-rem.colum, -rem.colum]
+    }, cor_mat)
+    return(cor_mat)
+}
+```
 
 
 
@@ -21,9 +168,19 @@ library("MALDIquant")
 
 
 
-mqPeaks<-list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T,ignore.case = T)[grep("proteinpeaks", list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T),ignore.case = T)]
+#  mqPeaks<-list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",full.names = T,
+#  ignore.case=T)[grep("proteinpeaks", list.files("C:/Users/CMC/Desktop/Example/Peak_Lists/",
+#  full.names = T),ignore.case = T)]
 
-mqPeaks <- sapply(mqPeaks,readRDS)
+
+
+mqPeaks<-list.files("C:/Users/CMC/Desktop/IDBac/Peak_Lists/",full.names = T,ignore.case = T)[grep("proteinpeaks", list.files("C:/Users/CMC/Desktop/IDBac/Peak_Lists/",full.names = T),ignore.case = T)]
+
+a<-strsplit(mqPeaks,"-")
+b<-sapply(a,length)
+c<-which(b==3)
+
+mqPeaks <- sapply(mqPeaks[c],readRDS)
 
 # input is just a vector of masses and a ppm value
 ppmAcrossVector<-function(massVector,ppm){massVector * .0000001 * ppm}
@@ -48,10 +205,11 @@ That's good to save for later... but... length(unlist(matched)) is more transpar
 
 ```{r}
 
-poop <- unlist(mqPeaks)
-names(poop) <- as.vector(sapply(poop,function(x)metaData(x)$Strain))
-# unlist() because spectra groups stored as list of list
+nameVector <- as.vector(sapply(unlist(mqPeaks),function(x)metaData(x)$Strain))
+
+#unlist() because spectra groups stored as list of list
 peakLists <- lapply(unlist(mqPeaks),mass)
+names(peakLists) <- nameVector
 
 
 
@@ -62,32 +220,92 @@ peakLists <- lapply(unlist(mqPeaks),mass)
 # so... "peakLists[pairs[1]][[1]][x]"... means return a certain peak vector and we'll iterate over the values in the first peak list.
    
 #ppmVector <- ppmAcrossVector(mqPeaks[[1]],10)
-
-    ppmVector <- ppmAcrossVector(peakLists[[1]],10)
-
+remove(mqPeaks)
 
 
 
   peakMatching<-function(pairs) {lapply(seq_along(peakLists[pairs[1]][[1]]),function(x){
-    ppmVector <- ppmAcrossVector(peakLists[pairs[1]][[1]],10)
+                   
+                    ppmVector <- ppmAcrossVector(peakLists[pairs[1]][[1]],100)
 
-                    which(peakLists[pairs[2]][[1]] <= peakLists[pairs[1]][[1]][x]+ppmVector[x] & peakLists[pairs[2]][[1]] >= peakLists[pairs[1]][[1]][x]-ppmVector[x])
-  }
-              )}
+                    which(peakLists[pairs[2]][[1]] <= peakLists[pairs[1]][[1]][x]+ppmVector[x] &                                 peakLists[pairs[2]][[1]] >= peakLists[pairs[1]][[1]][x]-ppmVector[x])
+                    }
+                 )}
 
   
     
   
   
   
-  pairwiseCombinations<-as.data.frame(combn(seq_along(peakLists), 2))
+  pairwiseCombinations<-as.data.frame(combn(seq_along(nameVector), 2))
 
   
   
+  
+    pairwiseCombinations<-as.data.frame(combn(seq_along(nameVector[1:10]), 2))
+ 
+    
+    
+  sapply(1:45,function(x)rev(combinadic(seq_along(nameVector[1:10]), 2,x)))
+  
+  
+ stepSize   <-  100
+ matched    <<- NULL
+ lengthData <-  length(seq_along(nameVector[1:500]))
+n(n-1)/2
+
+  for(z in 1:(lengthData(lengthData-1)/2)){
+  
+   
+  steppedePairs<-sapply(z,function(x)combinadic(), 2,x))
+
+
+
+
+
+
+
+
+
+
+       
+  # Run peakMatching pairwise
+  matched <- list(matched,lapply(steppedePairs,peakMatching))
+    
+         
+         
+         
+  
+### This version is much less RAM intensive, but we lose the groupings
+  peakMatching<-function(pairs) {as.vector(unlist(lapply(lapply(seq_along(peakLists[pairs[1]][[1]]),function(x){
+                   
+                    ppmVector <- ppmAcrossVector(peakLists[pairs[1]][[1]],100)
+
+                    rety<-which(peakLists[pairs[2]][[1]] <= peakLists[pairs[1]][[1]][x]+ppmVector[x] &                                 peakLists[pairs[2]][[1]] >= peakLists[pairs[1]][[1]][x]-ppmVector[x])
+                    
+                    
+                    
+                    }
+                 ),function(z) length((z)))))}
+
+  
+  
+nameVector <- as.vector(sapply(unlist(mqPeaks),function(x)metaData(x)$Strain))
+
+#unlist() because spectra groups stored as list of list
+peakLists <- lapply(unlist(mqPeaks),mass)
+names(peakLists) <- nameVector
+  
+  pairwiseCombinations<-as.data.frame(combn(seq_along(nameVector), 2))
+
+  
+  steppedePairs<-sapply(z,function(x)combinadic(), 2,x)
+
   # Run peakMatching pairwise
   matchedSamples <- lapply(pairwiseCombinations,peakMatching)
+    
   
-
+  
 ```
 
 
@@ -97,25 +315,24 @@ count matches
 
 lecou<-as.vector(unlist(lapply(matchedSamples,function(x) length(unlist(x)))))
 
+lecou<-sapply(matchedSamples,sum)
+
+
+
+
 
 ```
 
 
 Fix names
 ```{r}
-sampleNames <- as.vector(unlist(lapply(unlist(mqPeaks),function(x)metaData(x)$Strain)))
+sampleNames <- nameVector
 
 orderOfNamesIndices<-as.data.frame(t(pairwiseCombinations))
 
 
 
-a<-factor(orderOfNamesIndices[,1])
-b<-lapply(levels(a),function(x)which(a == x))
 
-
-
-c<-factor(orderOfNamesIndices[,2])
-d<-lapply(levels(c),function(x)which(c == x))
 
 ```
 
@@ -125,12 +342,16 @@ Create a lower-left "distance matrix" triangle. YES!!!
 
 factorized<-factor(orderOfNamesIndices[,1])
 # list of indices of samples
-groupedBySample<-lapply(levels(a),function(x)which(a == x))
+groupedBySample<-lapply(levels(factorized),function(x)which(factorized == x))
 
 
-re<-sapply(as.numeric(levels(factorized)),function(x) c(rep(NA,times=x),lecou[groupedBySample[[x]]]))
+re<-sapply(as.numeric(levels(factorized)),function(x)as.integer(c(rep(NA,times=x),lecou[groupedBySample[[x]]])))
+row.names(re)<-sampleNames
+a<-as.dist(re)
+b<-hclust(a)
 
-
+library(networkD3)
+dendroNetwork(b,treeOrientation = "horizontal",zoom = TRUE,height=8000)
 
 ```
 
@@ -138,11 +359,14 @@ re<-sapply(as.numeric(levels(factorized)),function(x) c(rep(NA,times=x),lecou[gr
 
 
 ```{r}
-library(dplyr)
-as_tibble(re)
+# library(dplyr)
+# as_tibble(re)
 ```
 
 
+```{r}
+wet <- as.data.frame(re)
+```
 
 
 
