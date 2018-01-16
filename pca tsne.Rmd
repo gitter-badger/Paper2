@@ -21,7 +21,7 @@ library(networkD3)
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-proteinMatrix<-readRDS("data/ProteinMatrixWithDefaultIDBacSettings.rds")
+proteinMatrix<-readRDS("data/SNR-10_40-PerRep_2000-20000.rds")
 
 ```
 
